@@ -1,0 +1,64 @@
+name: Build and Deploy
+
+on:
+  workflow_dispatch: {}
+
+env:
+  applicationfolder: spring-boot-hello-world-example
+  AWS_REGION: us-east-1
+  S3BUCKET: codedeploystack-webappdeploymentbucket-gbgbspwbuw25
+
+
+jobs:
+  build:
+    name: knocking out of gear
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout Repository
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
+          role-session-name: GitHub-Action-Role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: heating engine
+        uses: actions/setup-java@v2
+        with:
+          java-version: 21.0.1
+          distribution: 'zulu'
+
+      - name: turning the key
+        run: chmod -R +x ./.github
+
+      - name: rev the engine
+        id: package
+        working-directory: ${{ env.applicationfolder }}
+        run: $GITHUB_WORKSPACE/.github/scripts/build.sh
+
+      - name: off you go
+        working-directory: ${{ env.applicationfolder }}/target
+        run: aws s3 cp *.war s3://${{ env.S3BUCKET }}/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: Dev
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
+          role-session-name: GitHub-Action-Role
+          aws-region: ${{ env.AWS_REGION }}
+      - run: |
+          echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
+          commit_hash=`git rev-parse HEAD`
+          aws deploy create-deployment --application-name CodeDeployAppNameWithASG --deployment-group-name CodeDeployGroupName --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
