@@ -1,0 +1,27 @@
+name: Build and Deploy
+
+on:
+  workflow_dispatch: {}
+
+env:
+  applicationfolder: spring-boot-hello-world-example
+  AWS_REGION: us-east-1
+  S3BUCKET: codedeploystack-webappdeploymentbucket-gbgbspwbuw25
+
+
+jobs:
+  build:
+    name: Build and Package
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout Repository
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
+          role-session-name: GitHub-Action-Role
+          aws-region: ${{ env.AWS_REGION }}
